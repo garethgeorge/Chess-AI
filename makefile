@@ -1,5 +1,5 @@
-CXX = g++
-CFLAGS = -std=c++11
+CXX = g++ 
+CFLAGS = -std=c++11 -Wdivision-by-zero
 OBJECTS=main.o board.o
 BINARY=program
 

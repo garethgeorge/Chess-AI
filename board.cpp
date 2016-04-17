@@ -3,6 +3,46 @@
 #include "include/termcolor.hpp"
 #include <iostream>
 
+// get the value of a piece
+int pieceValues[] = {-1, 1, 3, 3, 5, 9, 1000};
+inline int getPieceValue(Piece p) {
+	if (p < 0)
+		return -pieceValues[-p];
+	else
+		return pieceValues[p];
+}
+
+// get the letter for the piece
+char pieceToChar(Piece p) {
+	switch (p) {
+		case PIECE_PAWN:
+			return 'P';
+		case PIECE_BISHOP:
+			return 'B';
+		case PIECE_ROOK:
+			return 'R';
+		case PIECE_KNIGHT:
+			return 'N';
+		case PIECE_KING:
+			return 'K';
+		case PIECE_QUEEN:
+			return 'Q';
+	}
+	return '-';
+}
+
+std::string Move::toString() const {
+	std::stringstream ss;
+	if (d >= 0) {
+		ss << "(" << (int) a << "->" << (int) b << ", " << (int) c << "-> " << (int) d << ")";
+	} else if (d == -1) {
+		ss << "([" << Board::indexGetX(a) << "," << Board::indexGetY(a) << "]" << "->[" << Board::indexGetX(b) << "," << Board::indexGetY(b) << "])";
+	} else if (d == -2) {
+		ss << "([" << Board::indexGetX(a) << ", " << Board::indexGetY(a) << "]->" << (int) b << " AS " << pieceToChar(c) << ")";
+	}
+	return ss.str();
+}
+
 
 Board::Board() {
 	for (int i = BOARD_SIZE; i >= 0; --i) {
@@ -28,55 +68,131 @@ Board::Board() {
 	this->board[blackOffset + 4] = -PIECE_KING;
 };
 
-void Board::MoveIterator::genMovesForPieceAtIndex(Player player, int index) {
+void Board::empty() {
+	for (int i = 0; i < BOARD_SIZE; ++i)
+		this->board[i] = 0;
+}
+
+
+void Board::MoveIterator::genMovesForPieceAtIndex(int index) {
+
 	Piece* pieces = board->board;
-	Piece p = pieces[index];
+	Piece p = pieces[index] * player;
 
 	int x = Board::indexGetX(index);
 	int y = Board::indexGetY(index);
 
 	switch (p) {
 		case PIECE_PAWN:
+
+			/* TODO: implement en passant rules */
 			
-			if (y + player >= 0 && y + player < BOARD_SIDE && pieces[Board::posToIndex(x, y + player)]) {
+			if (y + player >= 0 && y + player < BOARD_SIZE && pieces[Board::posToIndex(x, y + player)] == 0) {
 				addMoveToQueue(Move(index, Board::posToIndex(x, y + player)));
 			}
 
-			if (y + player * 2 >= 0 && y + player * 2 < BOARD_SIDE && pieces[Board::posToIndex(x, y + player * 2)]) {
+			if (((player == 1 && y == 1) || (player == -1 && y == 6))  && pieces[Board::posToIndex(x, y + player * 2)] == 0) {
 				addMoveToQueue(Move(index, Board::posToIndex(x, y + player * 2)));
 
-				if (Board::posIsOnBoard(x + 1, y + player * 2)) {
+				if (Board::posIsOnBoard(x + 1, y + player * 2) && pieces[Board::posToIndex(x + 1, player * 2)] * player < 0) {
 					addMoveToQueue(Move(index, Board::posToIndex(x + 1, y + player * 2)));
 				}
 
-				if (Board::posIsOnBoard(x - 1, y + player * 2)) {
+				if (Board::posIsOnBoard(x - 1, y + player * 2) && pieces[Board::posToIndex(x - 1, player * 2)] * player < 0) {
 					addMoveToQueue(Move(index, Board::posToIndex(x - 1, y + player * 2)));
 				}
 			}
 
-			break ;
-		case PIECE_BISHOP: 
+
+			if (Board::posIsOnBoard(x + 1, y + player) && pieces[Board::posToIndex(x + 1, player)] * player < 0) {
+				addMoveToQueue(Move(index, Board::posToIndex(x + 1, y + player)));
+			}
+
+			if (Board::posIsOnBoard(x - 1, y + player) && pieces[Board::posToIndex(x - 1, player)] * player < 0) {
+				addMoveToQueue(Move(index, Board::posToIndex(x - 1, y + player)));
+			}
 
 			break ;
+
 		case PIECE_KNIGHT:
+			
+			moveToOffset<2,1>(index, x, y);
+			moveToOffset<1,2>(index, x, y);
+			
+			moveToOffset<2,-1>(index, x, y);
+			moveToOffset<1,-2>(index, x, y);
+			
+			moveToOffset<-2,1>(index, x, y);
+			moveToOffset<-1,2>(index, x, y);
+
+			moveToOffset<-2,-1>(index, x, y);
+			moveToOffset<-1,-2>(index, x, y);
 
 			break ;
 		case PIECE_ROOK:
 
+			stepInDirection<1, 0>(x, y);
+			stepInDirection<-1, 0>(x, y);
+			stepInDirection<0, 1>(x, y);
+			stepInDirection<0, -1>(x, y);
+
 			break ;
+		case PIECE_BISHOP:
+			
+			stepInDirection<1, 1>(x, y);
+			stepInDirection<-1, 1>(x, y);
+			stepInDirection<1, -1>(x, y);
+			stepInDirection<-1, -1>(x, y);
+
+			break;
+
 		case PIECE_QUEEN:
+
+			stepInDirection<1, 0>(x, y);
+			stepInDirection<-1, 0>(x, y);
+			stepInDirection<0, 1>(x, y);
+			stepInDirection<0, -1>(x, y);
+
+			stepInDirection<1, 1>(x, y);
+			stepInDirection<-1, 1>(x, y);
+			stepInDirection<1, -1>(x, y);
+			stepInDirection<-1, -1>(x, y);
 
 			break ;
 		case PIECE_KING:
+
+			if (x + 1 < BOARD_SIDE)
+				moveTo(index, index + 1);
+			if (x - 1 >= 0)
+				moveTo(index, index - 1);
+			if (y + 1 < BOARD_SIDE)
+				moveTo(index, index + BOARD_SIDE);
+			if (y - 1 >= 0)
+				moveTo(index, index - BOARD_SIDE);
+
+			if (x + 1 < BOARD_SIDE && y + 1 < BOARD_SIDE)
+				moveTo(index, index + 1 + BOARD_SIDE);
+			if (x + 1 < BOARD_SIDE && y - 1 >= 0)
+				moveTo(index, index + 1 - BOARD_SIDE);
+			if (x - 1 >= 0 && y + 1 < BOARD_SIDE)
+				moveTo(index, index - 1 + BOARD_SIDE);
+			if (x - 1 >= 0 && y - 1 >= 0)
+				moveTo(index, index - 1 - BOARD_SIDE);
 
 			break ;
 	}
 }
 
-void Board::print() {
+void Board::print() const {
 	auto& ss = std::cout;
+	ss << termcolor::reset << " " << termcolor::grey << termcolor::on_white;
+	for (int i = 0; i < BOARD_SIDE; ++i) {
+		ss << (char) ('a' + i);
+	}
+	ss << termcolor::reset << std::endl;
+
 	for (int y = 0; y < BOARD_SIDE; ++y) {
-		ss << termcolor::bold;
+		ss << termcolor::on_white << termcolor::grey << (y + 1) << termcolor::bold;
 		for (int x = 0; x < BOARD_SIDE; ++x) {
 			int i = y * BOARD_SIDE + x;
 			Piece p = this->board[i];
@@ -91,30 +207,69 @@ void Board::print() {
 				} else 
 					ss << termcolor::white;
 
-				wchar_t c;
-				switch (p) {
-					case PIECE_PAWN:
-						ss << "P";
-						break;
-					case PIECE_BISHOP:
-						ss << "B";
-						break;
-					case PIECE_ROOK:
-						ss << "R";
-						break ;
-					case PIECE_KNIGHT:
-						ss << "N";
-						break;
-					case PIECE_KING:
-						ss << "K";
-						break;
-					case PIECE_QUEEN:
-						ss << "Q";
-						break;
-				}
+				ss << pieceToChar(p);
 			} else
 				ss << " ";
 		}
 		ss << termcolor::reset << std::endl;
 	}
+}
+
+int Board::getScore(Player perspective) const {
+	int score = 0;
+	
+	for (int i = BOARD_SIZE - 1; i >= 0; --i)
+		if (board[i] != 0)
+			score += getPieceValue(board[i]);
+
+	return score * perspective * 2 + rand() % 2;
+}
+
+int Board::minimax(const Player me, const Player activeTurn, Move& bestMove, int alpha, int beta, int depth) {
+	if (depth <= 0)
+		return getScore(me);
+
+	const Player nextTurn = activeTurn * (-1);
+
+	Move move;
+	Move trash;
+
+	Board::MoveIterator mIter(this, activeTurn);
+	MoveApplicator applicator(this);
+
+	if (me == activeTurn) {
+		int max = alpha;
+
+		while (mIter.getNext(move)) {
+			applicator.apply(move);
+			int score = minimax(me, nextTurn, trash, max, beta, depth - 1);
+			applicator.revert(move);
+			if (score > max) {
+				bestMove = move;
+				max = score;
+			}
+			if (beta <= max)
+				break ;
+		}
+
+		return max;
+	} else {
+		int min = beta;
+
+		while (mIter.getNext(move)) {
+			applicator.apply(move);
+			int score = minimax(me, nextTurn, trash, alpha, min, depth - 1);
+			applicator.revert(move);
+			if (score < min) {
+				bestMove = move;
+				min = score;
+			}
+			if (min <= alpha) {
+				break ;
+			}
+		}
+
+		return min;
+	}
+
 }
