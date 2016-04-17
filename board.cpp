@@ -85,6 +85,21 @@ void Board::MoveIterator::genMovesForPieceAtIndex(int index) {
 	switch (p) {
 		case PIECE_PAWN:
 
+			if (player == 1) {
+				if (moveToOffsetNoCapture<0,1>(index, x, y) && y == 1) {
+					moveToOffsetNoCapture<0,2>(index, x, y);
+				}
+				
+				moveToOffsetIfCanCapture<-1,1>(index, x, y);
+				moveToOffsetIfCanCapture<1,1>(index, x, y);
+			} else if (player == -1) {
+				if (moveToOffsetNoCapture<0,-1>(index, x, y) && y == 6) {
+					moveToOffsetNoCapture<0,-2>(index, x, y);
+				}
+				moveToOffsetIfCanCapture<-1,-1>(index, x, y);
+				moveToOffsetIfCanCapture<1,-1>(index, x, y);
+			}
+
 			/* TODO: implement en passant rules */
 			
 			if (y + player >= 0 && y + player < BOARD_SIZE && pieces[Board::posToIndex(x, y + player)] == 0) {
@@ -238,38 +253,37 @@ int Board::minimax(const Player me, const Player activeTurn, Move& bestMove, int
 	MoveApplicator applicator(this);
 
 	if (me == activeTurn) {
-		int max = alpha;
-
 		while (mIter.getNext(move)) {
 			applicator.apply(move);
-			int score = minimax(me, nextTurn, trash, max, beta, depth - 1);
+			int score = minimax(me, nextTurn, trash, alpha, beta, depth - 1);
 			applicator.revert(move);
-			if (score > max) {
-				bestMove = move;
-				max = score;
+
+			if (score >= beta) {
+				return beta;
 			}
-			if (beta <= max)
-				break ;
+
+			if (score > alpha) {
+				alpha = score;
+				bestMove = move;
+			}
 		}
 
-		return max;
+		return alpha;
 	} else {
-		int min = beta;
-
 		while (mIter.getNext(move)) {
 			applicator.apply(move);
-			int score = minimax(me, nextTurn, trash, alpha, min, depth - 1);
+			int score = minimax(me, nextTurn, trash, alpha, beta, depth - 1);
 			applicator.revert(move);
-			if (score < min) {
+			
+			if (score <= alpha)
+				return alpha;
+			if (score < beta) {
+				beta = score;
 				bestMove = move;
-				min = score;
-			}
-			if (min <= alpha) {
-				break ;
 			}
 		}
 
-		return min;
+		return beta;
 	}
 
 }

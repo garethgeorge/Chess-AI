@@ -121,6 +121,56 @@ public:
 			return moveTo(index, Board::posToIndex(x + dx, y + dy));
 		}
 
+		template<int dx, int dy>
+		inline bool moveToOffsetNoCapture(int index, int x, int y) {
+			if (dx > 0) {
+				if (x + dx >= BOARD_SIDE)
+					return false;
+			}
+			else if (dx < 0) {
+				if (x + dx < 0)
+					return false;
+			}
+			if (dy > 0) {
+				if (y + dy >= BOARD_SIDE)
+					return false;
+			}
+			else if (dy < 0) {
+				if (y + dy < 0)
+					return false;
+			}
+			if (board->board[Board::posToIndex(x + dx, y + dy)] == 0) {
+				addMoveToQueue(Move(index, Board::posToIndex(x + dx, y + dy)));
+				return true;
+			}
+			return false;
+		}
+
+		template<int dx, int dy>
+		inline bool moveToOffsetIfCanCapture(int index, int x, int y) {
+			if (dx > 0) {
+				if (x + dx >= BOARD_SIDE)
+					return false;
+			}
+			else if (dx < 0) {
+				if (x + dx < 0)
+					return false;
+			}
+			if (dy > 0) {
+				if (y + dy >= BOARD_SIDE)
+					return false;
+			}
+			else if (dy < 0) {
+				if (y + dy < 0)
+					return false;
+			}
+			if (board->board[Board::posToIndex(x + dx, y + dy)] * player < 0) {
+				addMoveToQueue(Move(index, Board::posToIndex(x + dx, y + dy)));
+				return true;
+			}
+			return false;
+		}
+
 	public:
 		MoveIterator(Board* board, Player player) : 
 			board(board), player(player), index(BOARD_SIZE), movesInQueue(0) { }
